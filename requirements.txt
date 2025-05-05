@@ -1,6 +1,7 @@
-flask
-apscheduler
-requests
-beautifulsoup4
-pytz
-gunicorn
+flask  
+gunicorn  
+requests  
+beautifulsoup4  
+pytz  
+apscheduler  
+line-bot-sdk
