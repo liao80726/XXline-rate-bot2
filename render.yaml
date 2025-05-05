@@ -2,5 +2,11 @@ services:
   - type: web
     name: line-rate-bot2
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn bot2:app --bind 0.0.0.0:$PORT
+    plan: free
+    buildCommand: "python3 -m pip install gunicorn && python3 -m pip install -r requirements.txt"
+    startCommand: "python3 -m gunicorn main:app --bind 0.0.0.0:10000"
+    region: oregon
+    pythonVersion: 3.11.11
+    envVars:
+      - key: RENDER_PYTHON_DISABLE_POETRY
+        value: true
