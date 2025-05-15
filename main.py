@@ -182,11 +182,12 @@ def push_message():
         response = requests.post("https://api.line.me/v2/bot/message/push", headers=headers, json=payload, timeout=REQUEST_TIMEOUT)
         print(f"❌ 推播錯誤回報: {response.status_code} | {response.text}")
 
-# -------- 自動排程設定（週一至週五 14:00） -------- #
+# -------- 自動排程設定（週一至週五 09:00 / 14:00） -------- #
 
 scheduler = BackgroundScheduler(timezone=TZ)
-scheduler.add_job(push_message, 'cron', day_of_week='mon-fri', hour='14', minute=0)
+scheduler.add_job(push_message, 'cron', day_of_week='mon-fri', hour='9,14', minute=0)
 scheduler.start()
+push_message()  # ➕ 加這行，首次啟動時就推播一次
 atexit.register(lambda: scheduler.shutdown())
 
 # -------- 手動觸發用路由 -------- #
