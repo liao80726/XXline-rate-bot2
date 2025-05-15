@@ -201,5 +201,9 @@ def trigger_push():
 def home():
     return "LINE 匯率推播機器人已啟動（14:00 自動推播）"
 
+@app.route("/ping")
+def ping():
+    return "pong", 200
+
 if __name__ == "__main__":
     app.run(debug=False, use_reloader=False)
