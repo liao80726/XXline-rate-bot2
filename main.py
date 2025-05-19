@@ -190,7 +190,6 @@ from datetime import datetime
 now = datetime.now(TZ)
 if now.weekday() < 5 and 8 <= now.hour <= 17:
     Timer(10, push_message).start()
-Timer(10, push_message).start()
 atexit.register(lambda: scheduler.shutdown())
 
 @app.route("/trigger_push", methods=["GET"])
