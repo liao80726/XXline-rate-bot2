@@ -1,3 +1,4 @@
+
 from flask import Flask, request
 import requests
 from bs4 import BeautifulSoup
@@ -5,6 +6,7 @@ import pytz
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
+from threading import Timer
 
 app = Flask(__name__)
 
@@ -16,8 +18,6 @@ HEADERS = {
 }
 REQUEST_TIMEOUT = 10
 TZ = pytz.timezone("Asia/Taipei")
-
-# -------- 抓取工具與匯率函式 -------- #
 
 def safe_request(url: str):
     try:
@@ -123,8 +123,6 @@ def get_twdbs_exchange_rates():
         if len(tds) >= 5 and "jpy" in tds[0].text.lower():
             return {"rate": float(tds[1].text)}, float(tds[1].text)
 
-# -------- 推播主流程 -------- #
-
 def push_message():
     try:
         print(f"⏰ [push_message] 執行時間：{datetime.now(TZ)}")
@@ -142,18 +140,18 @@ def push_message():
         message = ""
 
         if usd:
-            message += f"USD匯率（台灣銀行）：{usd['rate']:.4f}\n"
-            message += f"📉 最高：{usd['max']:.4f} 最低：{usd['min']:.4f}\n\n"
+            message += f"USD匯率（台灣銀行）：{usd['rate'] or 0:.4f}\n"
+            message += f"📉 最高：{usd['max'] or 0:.4f} 最低：{usd['min'] or 0:.4f}\n\n"
         if eur:
-            message += f"EUR匯率（台灣銀行）：{eur['rate']:.4f}\n"
-            message += f"📉 最高：{eur['max']:.4f} 最低：{eur['min']:.4f}\n\n"
+            message += f"EUR匯率（台灣銀行）：{eur['rate'] or 0:.4f}\n"
+            message += f"📉 最高：{eur['max'] or 0:.4f} 最低：{eur['min'] or 0:.4f}\n\n"
         if esun_jpy:
             message += f"JPY匯率（玉山賣出）：{esun_jpy:.4f}\n"
-            message += f"📉 最高：{esun_jpy_max:.4f} 最低：{esun_jpy_min:.4f}\n"
+            message += f"📉 最高：{esun_jpy_max or 0:.4f} 最低：{esun_jpy_min or 0:.4f}\n"
             jpy_total = round(esun_jpy * 22_000_000)
             message += f"🌐 試算：22,000,000 日圓 ➜ 約 {jpy_total:,} 元（銀行賣出）\n\n"
         if jpy:
-            message += f"JPY匯率（星展銀行）：{jpy['rate']:.4f}\n"
+            message += f"JPY匯率（星展銀行）：{jpy['rate'] or 0:.4f}\n"
         if jpy_ntd:
             ntd = round(jpy_ntd * 1_779_442)
             message += f"🌐 試算：1,779,442 日圓 ➜ 約 {ntd:,} 元（銀行買入）"
@@ -182,15 +180,18 @@ def push_message():
         response = requests.post("https://api.line.me/v2/bot/message/push", headers=headers, json=payload, timeout=REQUEST_TIMEOUT)
         print(f"❌ 推播錯誤回報: {response.status_code} | {response.text}")
 
-# -------- 自動排程設定（週一至週五 09:00 / 14:00） -------- #
-
 scheduler = BackgroundScheduler(timezone=TZ)
 scheduler.add_job(push_message, 'cron', day_of_week='mon-fri', hour='9,14', minute=0)
 scheduler.start()
-push_message()  # ➕ 加這行，首次啟動時就推播一次
-atexit.register(lambda: scheduler.shutdown())
 
-# -------- 手動觸發用路由 -------- #
+# 啟動後延遲推播（平日）
+from threading import Timer
+from datetime import datetime
+now = datetime.now(TZ)
+if now.weekday() < 5 and 8 <= now.hour <= 17:
+    Timer(10, push_message).start()
+Timer(10, push_message).start()
+atexit.register(lambda: scheduler.shutdown())
 
 @app.route("/trigger_push", methods=["GET"])
 def trigger_push():
@@ -208,3 +209,4 @@ def ping():
 
 if __name__ == "__main__":
     app.run(debug=False, use_reloader=False)
+
