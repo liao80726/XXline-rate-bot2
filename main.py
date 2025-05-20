@@ -1,12 +1,9 @@
-
 from flask import Flask, request
 import requests
 from bs4 import BeautifulSoup
 import pytz
 from datetime import datetime
-from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
-from threading import Timer
 
 app = Flask(__name__)
 
@@ -180,17 +177,13 @@ def push_message():
         response = requests.post("https://api.line.me/v2/bot/message/push", headers=headers, json=payload, timeout=REQUEST_TIMEOUT)
         print(f"❌ 推播錯誤回報: {response.status_code} | {response.text}")
 
-scheduler = BackgroundScheduler(timezone=TZ)
-scheduler.add_job(push_message, 'cron', day_of_week='mon-fri', hour='9,14', minute=0)
-scheduler.start()
-
-# 啟動後延遲推播（平日）
+# Timer only (無 scheduler)
 from threading import Timer
-from datetime import datetime
 now = datetime.now(TZ)
-if now.weekday() < 5 and 8 <= now.hour <= 17:
+if now.weekday() < 5 and now.hour in (9, 14) and now.minute == 0:
     Timer(10, push_message).start()
-atexit.register(lambda: scheduler.shutdown())
+
+atexit.register(lambda: print("🔚 程式結束，Timer 無需 shutdown"))
 
 @app.route("/trigger_push", methods=["GET"])
 def trigger_push():
@@ -200,7 +193,7 @@ def trigger_push():
 
 @app.route("/")
 def home():
-    return "LINE 匯率推播機器人已啟動（14:00 自動推播）"
+    return "LINE 匯率推播機器人（僅使用 Timer 於 09:00 / 14:00 自動推播）"
 
 @app.route("/ping")
 def ping():
@@ -208,4 +201,3 @@ def ping():
 
 if __name__ == "__main__":
     app.run(debug=False, use_reloader=False)
-
