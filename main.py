@@ -2,8 +2,10 @@ from flask import Flask, request
 import requests
 from bs4 import BeautifulSoup
 import pytz
-from datetime import datetime
+from datetime import datetime, time, timedelta
+from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
+from threading import Timer
 
 app = Flask(__name__)
 
@@ -177,13 +179,29 @@ def push_message():
         response = requests.post("https://api.line.me/v2/bot/message/push", headers=headers, json=payload, timeout=REQUEST_TIMEOUT)
         print(f"❌ 推播錯誤回報: {response.status_code} | {response.text}")
 
-# Timer only (無 scheduler)
-from threading import Timer
-now = datetime.now(TZ)
-if now.weekday() < 5 and now.hour in (9, 14) and now.minute == 0:
-    Timer(10, push_message).start()
+# ===== 排程器設定：整點推播 + 延遲保護 =====
+scheduler = BackgroundScheduler(timezone=TZ)
+scheduler.add_job(lambda: Timer(10, push_message).start(), 'cron', day_of_week='mon-fri', hour='9,14', minute=0)
+scheduler.start()
 
-atexit.register(lambda: print("🔚 程式結束，Timer 無需 shutdown"))
+def should_trigger_now():
+    now = datetime.now(TZ)
+    if now.weekday() >= 5:
+        return False
+    schedule_times = [time(9, 0), time(14, 0)]
+    for sched in schedule_times:
+        sched_dt = datetime.combine(now.date(), sched).replace(tzinfo=TZ)
+        if sched_dt <= now <= sched_dt + timedelta(minutes=15):
+            return True
+    return False
+
+if should_trigger_now():
+    print("✅ 啟動後 15 分鐘內，自動補推播")
+    Timer(10, push_message).start()
+else:
+    print("🕒 啟動時間不符合補推播條件")
+
+atexit.register(lambda: scheduler.shutdown())
 
 @app.route("/trigger_push", methods=["GET"])
 def trigger_push():
@@ -193,7 +211,7 @@ def trigger_push():
 
 @app.route("/")
 def home():
-    return "LINE 匯率推播機器人（僅使用 Timer 於 09:00 / 14:00 自動推播）"
+    return "LINE 匯率推播機器人已啟動（09:00 / 14:00 自動推播）"
 
 @app.route("/ping")
 def ping():
