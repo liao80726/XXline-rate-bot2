@@ -198,9 +198,9 @@ def trigger_push():
     push_message()
     return "Trigger pushed successfully"
 
-@app.route("/")
+@app.route('/')
 def home():
-    return "LINE 匯率推播機器人已啟動（14:00 自動推播）"
+    return "LINE BOT2 is alive.", 200
 
 @app.route("/ping")
 def ping():
